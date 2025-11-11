@@ -37,3 +37,13 @@ async function login() {
         alert("Logged in. You’re him.")
     }
 }
+
+async function loadLayout() {
+  document.getElementById("navbar").innerHTML =
+    await (await fetch("components/navbar.html")).text();
+
+  document.getElementById("footer").innerHTML =
+    await (await fetch("components/footer.html")).text();
+}
+
+document.addEventListener("DOMContentLoaded", loadLayout);

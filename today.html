@@ -9,15 +9,17 @@
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkdHBjZnh6bmNlaGhudm1nbHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI4MzcwMDYsImV4cCI6MjA3ODQxMzAwNn0.vlwKNgq0Gqyg7e747O7s3KCVw2J9bZQfS5zzW78X6RY"
         );
     </script>
+    <script src="script.js"></script>
     <link rel='stylesheet' href="stylesheet.css">
 </head>
 <body>
-
-    <h1>Today's AI Pickett</h1>
-    <div id="image-container">
-    <p>Loading...</p>
+    <div id="navbar"></div>
+    <div class="content-section">
+        <h1>Today's AI Pickett</h1>
+        <div id="image-container">
+            <p>Loading...</p>
+        </div>
     </div>
-
     <script>
         async function loadTodayImage() {
         const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
@@ -35,13 +37,16 @@
         }
 
         document.getElementById("image-container").innerHTML = `
-            <img src="${data.image_url}" style="max-width: 90vw; max-height: 80vh;" class="pickett-image">
+            <img src="${data.image_url}" class="pickett-image">
             <p>AI Pickett for ${today}</p>
         `;
         }
 
         loadTodayImage();
     </script>
+
+    <br><br><br>
+    <div id="footer"></div>
 
 </body>
 </html>
