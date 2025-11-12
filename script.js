@@ -26,16 +26,6 @@ async function register() {
 }
 
 
-// toggle emote picker visibility
-const emoteBtn = document.getElementById("emote-btn");
-const emotePicker = document.getElementById("emote-picker");
-
-if (emoteBtn) {
-  emoteBtn.addEventListener("click", () => {
-    emotePicker.classList.toggle("hidden");
-  });
-}
-
 // send emote to chat
 async function sendEmote(emoteUrl) {
   const username = document.getElementById("chat-username").value.trim() || "Anonymous";
