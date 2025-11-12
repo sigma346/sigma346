@@ -139,6 +139,20 @@ async function sendMessage() {
   document.getElementById("chat-input").value = "";
 }
 
+// make pressing Enter send the message
+document.addEventListener("DOMContentLoaded", () => {
+  const input = document.getElementById("chat-input");
+  if (input) {
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault(); // stop newlines
+        sendMessage();
+      }
+    });
+  }
+});
+
+
 // 🔄 Load old messages
 // load existing messages (supports emotes)
 async function loadMessages() {
