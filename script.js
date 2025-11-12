@@ -72,7 +72,7 @@ function formatTime(timestamp) {
   return `(${hours}:${minutes})`;
 }
 
-function addMessage(username, text, created_at, emote_url = null) {
+function addMessage(username, text, created_at, emote_url = null, color = "#000000ff") {
   const messagesDiv = document.getElementById("messages");
 
   const msgDiv = document.createElement("div");
@@ -82,6 +82,7 @@ function addMessage(username, text, created_at, emote_url = null) {
   const userSpan = document.createElement("span");
   userSpan.classList.add("chat-username");
   userSpan.textContent = `[${username}]`;
+  userSpan.style.color = color;
 
   // message text
   const textSpan = document.createElement("span");
@@ -120,9 +121,11 @@ async function sendMessage() {
   const text = document.getElementById("chat-input").value.trim();
   if (!text) return;
 
+  const color = document.getElementById('color').value;
+
   const { error } = await db
     .from("chat_messages")
-    .insert([{ username: username, message: text }]);
+    .insert([{ username: username, message: text, color }]);
 
   if (error) console.error("Error sending message:", error);
 
@@ -156,7 +159,8 @@ async function loadMessages() {
     return;
   }
 
-  data.forEach((msg) => addMessage(msg.username, msg.message, msg.created_at, msg.emote_url));
+  data.forEach((msg) => addMessage(msg.username, msg.message, msg.created_at, msg.emote_url, msg.color));
+
 }
 
 // ⚡ Real-time message updates (no refresh)
@@ -164,7 +168,7 @@ async function loadMessages() {
 db.channel("chat")
   .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
     const msg = payload.new;
-    addMessage(msg.username, msg.message, msg.created_at, msg.emote_url);
+    addMessage(msg.username, msg.message, msg.created_at, msg.emote_url, msg.color);
   })
   .subscribe();
 
