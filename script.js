@@ -229,6 +229,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // send emote to chat
 async function sendEmote(emoteUrl) {
+
+  if (!window.currentUser) {
+    alert("Please log in to send emotes.");
+    return;
+  }
   const username = document.getElementById("chat-username").value.trim() || "Anonymous";
 
   const { error } = await db
