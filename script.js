@@ -7,6 +7,8 @@ const db = supabase.createClient(
 function qs(id) { return document.getElementById(id); }
 function showAlert(msg) { alert(msg); } // replace with custom UI later
 
+let lastMessageUser = null; // track last message sender
+
 // ---------- Register ----------
 
 async function register() {
@@ -287,35 +289,61 @@ function addMessage(username, text, created_at, emote_url = null, color = "#0000
   
   const messagesDiv = document.getElementById("messages");
 
+    // check if this msg is same sender as last one
+  const isSameUserAsLast = (username === lastMessageUser);
+
   const wrapper = document.createElement("div");
   wrapper.classList.add("chat-message");
 
-  // Profile Picture
-  const pfp = document.createElement("img");
-  pfp.classList.add("chat-pfp");
-  pfp.src = profile_pic || "media/pfp.png";
-  wrapper.appendChild(pfp);
+  // left column (pfp area)
+  const left = document.createElement("div");
+  left.classList.add("chat-left");
 
-  // Main content
-  const content = document.createElement("div");
-  content.classList.add("chat-content");
+  // right column
+  const right = document.createElement("div");
+  right.classList.add("chat-right");
 
-  // Header (username + role)
-  const header = document.createElement("div");
-  header.classList.add("chat-header");
 
-  const userSpan = document.createElement("span");
-  userSpan.classList.add("chat-username");
-  userSpan.textContent = `[${username}]`;
-  userSpan.style.color = color;
-  header.appendChild(userSpan);
+    // Main content
+    const content = document.createElement("div");
+    content.classList.add("chat-content");
 
-  if (role) {
-    const roleSpan = document.createElement("span");
-    roleSpan.classList.add("chat-role");
-    roleSpan.textContent = role;
-    header.appendChild(roleSpan);
-  }
+
+
+  if (!isSameUserAsLast) {
+      const pfp = document.createElement("img");
+      pfp.classList.add("chat-pfp");
+      pfp.src = profile_pic || "media/pfp.png";
+      left.appendChild(pfp);
+
+      const header = document.createElement("div");
+      header.classList.add("chat-header");
+
+      const userSpan = document.createElement("span");
+      userSpan.classList.add("chat-username");
+      userSpan.textContent = `[${username}]`;
+      userSpan.style.color = color;
+      header.appendChild(userSpan);
+
+      if (role) {
+          const roleSpan = document.createElement("span");
+          roleSpan.classList.add("chat-role");
+          roleSpan.textContent = role;
+          header.appendChild(roleSpan);
+      }
+
+      right.appendChild(header);
+
+  } else {
+    // keep space but hide pfp
+    const spacer = document.createElement("div");
+    spacer.classList.add("chat-pfp-spacer");
+    left.appendChild(spacer);
+
+    // same user group → shrink vertical spacing
+    wrapper.classList.add("same-user");
+}
+
 
   // Body (text/emote + timestamp)
   const body = document.createElement("div");
@@ -339,12 +367,14 @@ function addMessage(username, text, created_at, emote_url = null, color = "#0000
   body.appendChild(timeSpan);
 
   // Build final structure
-  content.appendChild(header);
-  content.appendChild(body);
-  wrapper.appendChild(content);
+  right.appendChild(body);
+  wrapper.appendChild(left);
+  wrapper.appendChild(right);
   messagesDiv.appendChild(wrapper);
 
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+  lastMessageUser = username;
 }
 
 
