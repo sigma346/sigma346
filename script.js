@@ -8,6 +8,8 @@ function qs(id) { return document.getElementById(id); }
 function showAlert(msg) { alert(msg); } // replace with custom UI later
 
 let lastMessageUser = null; // track last message sender
+let lastReadMessageId = null; // track last read message ID
+let unreadCount = 0; // count of unread messages
 
 // ---------- Register ----------
 
@@ -283,10 +285,10 @@ function formatTime(timestamp) {
   return `(${hours}:${minutes})`;
 }
 
-function addMessage(username, text, created_at, emote_url = null, color = "#000000ff", role="", profile_pic=null) {
+function addMessage(username, text, created_at, emote_url = null, color = "#000000ff", role="", profile_pic=null, messageId=null, isInitialLoad=false) {
   // only do this if messages div exists
   if (!document.getElementById("messages")) return;
-  
+
   const messagesDiv = document.getElementById("messages");
 
     // check if this msg is same sender as last one
@@ -294,6 +296,7 @@ function addMessage(username, text, created_at, emote_url = null, color = "#0000
 
   const wrapper = document.createElement("div");
   wrapper.classList.add("chat-message");
+  wrapper.setAttribute('data-message-id', messageId); // Add message ID for tracking
 
   // left column (pfp area)
   const left = document.createElement("div");
@@ -372,7 +375,42 @@ function addMessage(username, text, created_at, emote_url = null, color = "#0000
   wrapper.appendChild(right);
   messagesDiv.appendChild(wrapper);
 
-  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  // For initial load, don't increment unread count or auto-scroll
+  if (!isInitialLoad) {
+    // Check if user is scrolled to bottom and window is focused
+    const isAtBottom = messagesDiv.scrollTop + messagesDiv.clientHeight >= messagesDiv.scrollHeight - 10;
+    const isWindowFocused = document.hasFocus();
+
+    if (isAtBottom) {
+      // Auto-scroll to bottom for new messages when at bottom (regardless of focus)
+      // Use setTimeout to ensure DOM has updated before scrolling
+      setTimeout(() => {
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }, 0);
+      // Mark as read only if window is focused
+      if (isWindowFocused && messageId) {
+        lastReadMessageId = messageId;
+        localStorage.setItem('lastReadMessageId', lastReadMessageId);
+        unreadCount = 0;
+        updateUnreadCounter();
+        updateLastReadIndicator();
+        updateDocumentTitle();
+      }
+    } else {
+      // Increment unread count if not at bottom
+      if (messageId && messageId !== lastReadMessageId) {
+        unreadCount++;
+        updateUnreadCounter();
+        updateLastReadIndicator();
+        updateDocumentTitle();
+      }
+    }
+  }
+
+  // Update last read indicator after adding the message (only for real-time messages)
+  if (!isInitialLoad) {
+    updateLastReadIndicator();
+  }
 
   lastMessageUser = username;
 }
@@ -458,8 +496,45 @@ async function loadMessages() {
     return;
   }
 
-  data.forEach((msg) => addMessage(msg.username, msg.message, msg.created_at, msg.emote_url, msg.color, msg.role, msg.profile_image));
+  // Load last read message ID from localStorage
+  lastReadMessageId = localStorage.getItem('lastReadMessageId');
 
+  data.forEach((msg) => addMessage(msg.username, msg.message, msg.created_at, msg.emote_url, msg.color, msg.role, msg.profile_image, msg.id, true));
+
+  // Set last read to the most recent message if not set
+  if (!lastReadMessageId && data.length > 0) {
+    lastReadMessageId = data[data.length - 1].id;
+    localStorage.setItem('lastReadMessageId', lastReadMessageId);
+  }
+
+  // Calculate unread count: messages after lastReadMessageId
+  if (lastReadMessageId) {
+    const lastReadIndex = data.findIndex(msg => msg.id === lastReadMessageId);
+    if (lastReadIndex !== -1) {
+      unreadCount = data.length - 1 - lastReadIndex;
+    } else {
+      // If lastReadMessageId not found (e.g., old message), assume all read and set to last
+      unreadCount = 0;
+      lastReadMessageId = data[data.length - 1].id;
+      localStorage.setItem('lastReadMessageId', lastReadMessageId);
+    }
+  } else {
+    unreadCount = data.length;
+  }
+
+  updateUnreadCounter();
+  // Update last read indicator after initial load
+  updateLastReadIndicator();
+  // Update document title after initial load
+  updateDocumentTitle();
+
+  // Scroll to last read message if it exists
+  if (lastReadMessageId) {
+    const lastReadMessage = document.querySelector(`[data-message-id="${lastReadMessageId}"]`);
+    if (lastReadMessage) {
+      lastReadMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
 }
 
 
@@ -475,6 +550,29 @@ async function initPage() {
 
   setupChatInput();
   setupResizeHandle();
+  setupScrollRead();
+
+  // Update last read indicator on window focus
+  window.addEventListener('focus', () => {
+    const messagesDiv = document.getElementById('messages');
+    if (messagesDiv) {
+      const isAtBottom = messagesDiv.scrollTop + messagesDiv.clientHeight >= messagesDiv.scrollHeight - 10;
+      if (isAtBottom && unreadCount > 0) {
+        // Mark all as read when focusing and at bottom
+        const lastMessage = messagesDiv.querySelector('.chat-message:last-child');
+        if (lastMessage) {
+          const messageId = lastMessage.getAttribute('data-message-id');
+          if (messageId) {
+            lastReadMessageId = messageId;
+            localStorage.setItem('lastReadMessageId', lastReadMessageId);
+            unreadCount = 0;
+            updateUnreadCounter();
+            updateLastReadIndicator();
+          }
+        }
+      }
+    }
+  });
 }
 
 
@@ -483,7 +581,7 @@ async function initPage() {
 db.channel("chat")
   .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
     const msg = payload.new;
-    addMessage(msg.username, msg.message, msg.created_at, msg.emote_url, msg.color, msg.role, window.currentUser?.profile_image);
+    addMessage(msg.username, msg.message, msg.created_at, msg.emote_url, msg.color, msg.role, window.currentUser?.profile_image, msg.id);
   })
   .subscribe();
 
@@ -590,4 +688,82 @@ function setupResizeHandle() {
       document.body.style.userSelect = '';
     }
   });
+}
+
+// Update unread message counter
+function updateUnreadCounter() {
+  const header = document.querySelector('.chat-header');
+  if (!header) return;
+
+  // Remove existing counter
+  const existingCounter = header.querySelector('.unread-counter');
+  if (existingCounter) {
+    existingCounter.remove();
+  }
+
+  if (unreadCount > 0) {
+    const counter = document.createElement('span');
+    counter.classList.add('unread-counter');
+    counter.textContent = ` (${unreadCount} unread)`;
+    counter.style.color = 'red';
+    counter.style.fontWeight = 'bold';
+    header.appendChild(counter);
+  }
+}
+
+// Update document title with unread count
+function updateDocumentTitle() {
+  const baseTitle = "Messages";
+  if (unreadCount > 0) {
+    document.title = `(${unreadCount}) ${baseTitle}`;
+  } else {
+    document.title = baseTitle;
+  }
+}
+
+// Mark messages as read when scrolling to bottom and window is focused
+function setupScrollRead() {
+  const messagesDiv = document.getElementById('messages');
+  if (!messagesDiv) return;
+
+  messagesDiv.addEventListener('scroll', () => {
+    const isAtBottom = messagesDiv.scrollTop + messagesDiv.clientHeight >= messagesDiv.scrollHeight - 10;
+    const isWindowFocused = document.hasFocus();
+    if (isAtBottom && isWindowFocused && unreadCount > 0) {
+      // Find the last message ID
+      const lastMessage = messagesDiv.querySelector('.chat-message:last-child');
+      if (lastMessage) {
+        const messageId = lastMessage.getAttribute('data-message-id');
+        if (messageId) {
+          lastReadMessageId = messageId;
+          localStorage.setItem('lastReadMessageId', lastReadMessageId);
+          unreadCount = 0;
+          updateUnreadCounter();
+          updateLastReadIndicator();
+          updateDocumentTitle();
+        }
+      }
+    }
+  });
+}
+
+// Update last read indicator position
+function updateLastReadIndicator() {
+  // Remove existing indicators
+  const existingIndicators = document.querySelectorAll('.last-read-indicator');
+  existingIndicators.forEach(indicator => indicator.remove());
+
+  if (!lastReadMessageId) return;
+
+  // Find the message with the last read ID
+  const lastReadMessage = document.querySelector(`[data-message-id="${lastReadMessageId}"]`);
+  if (lastReadMessage && unreadCount > 0) {
+    // Insert indicator after the message
+    const indicator = document.createElement("div");
+    indicator.classList.add("last-read-indicator");
+    const span = document.createElement("span");
+    span.textContent = "Last Read";
+    indicator.appendChild(span);
+    lastReadMessage.parentNode.insertBefore(indicator, lastReadMessage.nextSibling);
+  }
 }

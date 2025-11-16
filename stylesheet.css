@@ -313,7 +313,7 @@ button:active {
 
 .chat-timestamp {
   font-style: italic;
-  color: #cfcfcf; /* grey timestamp */
+  color: #aaaaaa; /* grey timestamp */
   margin-left: 5px;
 }
 
@@ -348,6 +348,48 @@ button:active {
 
 .chat-role {
   color: #b8b8b8;
+}
+
+.last-read-indicator {
+  position: relative;
+  width: 100%;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 10px 0 5px 0;
+}
+
+.last-read-indicator::before,
+.last-read-indicator::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: #4fb446;
+}
+
+.last-read-indicator::before {
+  margin-right: 10px;
+}
+
+.last-read-indicator::after {
+  margin-left: 10px;
+}
+
+.last-read-indicator span {
+  font-size: 12px;
+  color: #4fb446;
+  font-weight: bold;
+  background-color: #fff;
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid #4fb446;
+  white-space: nowrap;
+}
+
+.unread-counter {
+  color: red;
+  font-weight: bold;
 }
 
 .messages {
