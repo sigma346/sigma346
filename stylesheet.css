@@ -199,6 +199,32 @@ button:active {
   border-right: 2px solid #55585f;
 }
 
+.chat-box {
+  position: relative;
+  overflow-x: hidden;
+  width: 90%;
+  margin: 40px auto;
+  background: #fff;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 100%;
+  height: 20px;
+  background-color: #bbbec4;
+  cursor: ns-resize;
+  border-radius: 0 0 8px 8px;
+}
+
+.resize-handle:hover {
+  background-color: #ccced3;
+}
+
 .channel-header {
   background-color: #8b8d91;
   padding: 10px 20px;
@@ -213,6 +239,7 @@ button:active {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
+  min-height: 0; /* Allow flex item to shrink below content size */
 }
 
 .chat-message {
@@ -313,7 +340,10 @@ button:active {
     padding: 15px;
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  
+    min-width: 300px;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
 }
 
 .chat-role {
@@ -338,6 +368,7 @@ button:active {
   padding: 10px;
   background-color: rgb(232, 231, 236);
   border-radius: 10px;
+  flex-shrink: 0; /* Prevent input area from shrinking */
 }
 
 .chat-input-area input {

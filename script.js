@@ -474,6 +474,7 @@ async function initPage() {
   }
 
   setupChatInput();
+  setupResizeHandle();
 }
 
 
@@ -547,3 +548,46 @@ function getPublicProfileImage(userId, ext = "png") {
     .getPublicUrl(`${userId}.${ext}`).data.publicUrl;
 }
 
+// ---------- Resize Handle Functionality ----------
+
+function setupResizeHandle() {
+  const resizeHandle = document.querySelector('.resize-handle');
+  const chatBox = document.querySelector('.chat-box');
+  const messagesDiv = document.querySelector('.messages');
+
+  if (!resizeHandle || !chatBox || !messagesDiv) return;
+
+  let isResizing = false;
+  let startY;
+  let startHeight;
+
+  resizeHandle.addEventListener('mousedown', (e) => {
+    isResizing = true;
+    startY = e.clientY;
+    startHeight = chatBox.offsetHeight;
+    document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isResizing) return;
+
+    const deltaY = e.clientY - startY; // Note: for height, we add deltaY to increase downward
+    const newHeight = startHeight + deltaY;
+
+    if (newHeight >= 300) { // Minimum height
+      chatBox.style.height = newHeight + 'px';
+      // Force messages to take remaining space
+      messagesDiv.style.flex = '1';
+      messagesDiv.style.height = 'auto';
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isResizing) {
+      isResizing = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+  });
+}
