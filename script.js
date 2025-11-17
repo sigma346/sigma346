@@ -561,7 +561,7 @@ async function initPage() {
     db.channel("chat")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
         const msg = payload.new;
-        addMessage(msg.username, msg.message, msg.created_at, msg.emote_url, msg.color, msg.role, window.currentUser?.profile_image, msg.id);
+        addMessage(msg.username, msg.message, msg.created_at, msg.emote_url, msg.color, msg.role, msg.profile_image, msg.id);
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "chat_messages" }, (payload) => {
         const deletedId = payload.old.id;
