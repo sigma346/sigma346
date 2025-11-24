@@ -231,7 +231,7 @@ async function sendEmote(emoteUrl) {
 
   const { error } = await db
     .from("chat_messages")
-    .insert([{ username: username, message: "", emote_url: emoteUrl, color: window.currentUser?.color || "#000000ff", role: levelToRole(window.currentUser?.level) }]);
+    .insert([{ username: username, message: "", emote_url: emoteUrl, color: window.currentUser?.color || "#000000ff", role: levelToRole(window.currentUser?.level), profile_image: window.currentUser?.profile_image || 'media/pfp.png' }]);
 
   if (error) console.error("Error sending emote:", error);
 
@@ -298,6 +298,9 @@ function addMessage(username, text, created_at, emote_url = null, color = "#0000
   wrapper.classList.add("chat-message");
   wrapper.setAttribute('data-message-id', messageId); // Add message ID for tracking
 
+  // Check if message is deleted
+  const isDeleted = text === "this message was deleted";
+
   // left column (pfp area)
   const left = document.createElement("div");
   left.classList.add("chat-left");
@@ -313,7 +316,7 @@ function addMessage(username, text, created_at, emote_url = null, color = "#0000
 
 
 
-  if (!isSameUserAsLast) {
+  if (!isSameUserAsLast && !isDeleted) {
       const pfp = document.createElement("img");
       pfp.classList.add("chat-pfp");
       pfp.src = profile_pic || "media/pfp.png";
@@ -338,7 +341,7 @@ function addMessage(username, text, created_at, emote_url = null, color = "#0000
       right.appendChild(header);
 
   } else {
-    // keep space but hide pfp
+    // keep space but hide pfp (for same user or deleted)
     const spacer = document.createElement("div");
     spacer.classList.add("chat-pfp-spacer");
     left.appendChild(spacer);
@@ -356,7 +359,16 @@ function addMessage(username, text, created_at, emote_url = null, color = "#0000
   const contentSpan = document.createElement("span");
   contentSpan.classList.add("message-content");
 
-  if (emote_url) {
+  if (isDeleted) {
+    contentSpan.classList.add("deleted-message");
+  }
+
+  if (isDeleted) {
+    const textSpan = document.createElement("span");
+    textSpan.classList.add("chat-text");
+    textSpan.textContent = text;
+    contentSpan.appendChild(textSpan);
+  } else if (emote_url) {
     const emoteImg = document.createElement("img");
     emoteImg.src = emote_url;
     emoteImg.classList.add("chat-emote");
@@ -375,8 +387,8 @@ function addMessage(username, text, created_at, emote_url = null, color = "#0000
   timeSpan.textContent = formatTime(created_at);
   body.appendChild(timeSpan);
 
-  // Add delete button for moderators/admins (level 3+) to the right of timestamp
-  if (window.currentUser && window.currentUser.level >= 3 && messageId) {
+  // Add delete button for moderators/admins (level 3+) to the right of timestamp, but not for deleted messages
+  if (window.currentUser && window.currentUser.level >= 3 && messageId && !isDeleted) {
     const deleteBtn = document.createElement("button");
     deleteBtn.classList.add("delete-message-btn");
     deleteBtn.textContent = "❌";
@@ -563,6 +575,16 @@ async function initPage() {
         const msg = payload.new;
         addMessage(msg.username, msg.message, msg.created_at, msg.emote_url, msg.color, msg.role, msg.profile_image, msg.id);
       })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_messages" }, (payload) => {
+        const updatedMsg = payload.new;
+        // Remove old message element
+        const oldElement = document.querySelector(`[data-message-id="${updatedMsg.id}"]`);
+        if (oldElement) {
+          oldElement.remove();
+        }
+        // Re-add updated message
+        addMessage(updatedMsg.username, updatedMsg.message, updatedMsg.created_at, updatedMsg.emote_url, updatedMsg.color, updatedMsg.role, updatedMsg.profile_image, updatedMsg.id);
+      })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "chat_messages" }, (payload) => {
         const deletedId = payload.old.id;
         const messageElement = document.querySelector(`[data-message-id="${deletedId}"]`);
@@ -695,14 +717,12 @@ function setupResizeHandle() {
   document.addEventListener('mousemove', (e) => {
     if (!isResizing) return;
 
-    const deltaY = e.clientY - startY; // Note: for height, we add deltaY to increase downward
+    const deltaY = e.clientY - startY;
     const newHeight = startHeight + deltaY;
 
     if (newHeight >= 300) { // Minimum height
       chatBox.style.height = newHeight + 'px';
-      // Force messages to take remaining space
-      messagesDiv.style.flex = '1';
-      messagesDiv.style.height = 'auto';
+      // No need to set messagesDiv height explicitly, as flex: 1 will handle it
     }
   });
 
@@ -815,9 +835,12 @@ async function deleteMessage(messageId) {
     return;
   }
 
-  // Remove from DOM
+  // Immediately remove the message element from the UI
   const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
   if (messageElement) {
     messageElement.remove();
   }
+
+  // Reload messages to fix grouping after deletion
+  await loadMessages();
 }
